@@ -11,6 +11,7 @@ import Tasks from "./pages/Tasks"
 import Tickets from "./pages/Tickets"
 import Users from "./pages/Users"
 import Portal from "./pages/Portal"
+import PendingApprovals from "./pages/PendingApprovals"
 import Forbidden from "./pages/Forbidden"
 
 // Wrapper components for each route
@@ -56,6 +57,12 @@ const PortalPage = () => (
   </Layout>
 )
 
+const PendingApprovalsPage = () => (
+  <Layout>
+    <PendingApprovals />
+  </Layout>
+)
+
 function App() {
   return (
     <AuthProvider>
@@ -93,6 +100,10 @@ function App() {
           <Route
             path="/portal"
             element={<ProtectedRoute element={PortalPage} />}
+          />
+          <Route
+            path="/pending-approvals"
+            element={<ProtectedRoute element={PendingApprovalsPage} />}
           />
           
           {/* Catch all route - redirect to dashboard or login */}

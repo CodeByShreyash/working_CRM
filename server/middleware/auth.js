@@ -18,7 +18,33 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = await User.findById(decoded.id)
+    
+    // Check if user still exists
+    const user = await User.findById(decoded.id)
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User no longer exists",
+      })
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: "User account is deactivated",
+      })
+    }
+
+    // Check if user is approved (except for super_admin and admin)
+    if (!user.isApproved && user.role !== "super_admin" && user.role !== "admin") {
+      return res.status(401).json({
+        success: false,
+        message: "Your account is pending approval",
+      })
+    }
+
+    req.user = user
     next()
   } catch (err) {
     return res.status(401).json({
@@ -39,4 +65,15 @@ exports.authorize = (...roles) => {
     }
     next()
   }
+}
+
+// Check if user is admin or super_admin
+exports.requireAdmin = (req, res, next) => {
+  if (req.user.role !== "admin" && req.user.role !== "super_admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. Admin privileges required.",
+    })
+  }
+  next()
 }

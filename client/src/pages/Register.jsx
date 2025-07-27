@@ -12,6 +12,8 @@ const Register = () => {
     role: "sales_executive",
   })
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { register, isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
@@ -32,10 +34,26 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
+    setIsSubmitting(true)
 
-    const result = await register(formData.name, formData.email, formData.password, formData.role)
-    if (!result.success) {
-      setError(result.message)
+    try {
+      const result = await register(formData.name, formData.email, formData.password, formData.role)
+      if (result.success) {
+        setSuccess("Registration successful! Your account is pending approval. You will be able to login once an administrator approves your account.")
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          role: "sales_executive",
+        })
+      } else {
+        setError(result.message)
+      }
+    } catch (error) {
+      setError("An error occurred during registration. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -57,6 +75,7 @@ const Register = () => {
         <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Register for CRM</h2>
 
         {error && <div className="alert alert-error">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -68,6 +87,7 @@ const Register = () => {
               value={formData.name}
               onChange={handleChange}
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -80,6 +100,7 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               required
+              disabled={isSubmitting}
             />
           </div>
 
@@ -92,12 +113,19 @@ const Register = () => {
               value={formData.password}
               onChange={handleChange}
               required
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="form-group">
             <label>Role:</label>
-            <select name="role" className="form-control" value={formData.role} onChange={handleChange}>
+            <select 
+              name="role" 
+              className="form-control" 
+              value={formData.role} 
+              onChange={handleChange}
+              disabled={isSubmitting}
+            >
               <option value="sales_executive">Sales Executive</option>
               <option value="sales_manager">Sales Manager</option>
               <option value="support_agent">Support Agent</option>
@@ -105,8 +133,13 @@ const Register = () => {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
-            Register
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            style={{ width: "100%" }}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Registering..." : "Register"}
           </button>
         </form>
 

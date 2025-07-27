@@ -29,6 +29,17 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    approvedBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
     createdBy: {
       type: mongoose.Schema.ObjectId,
       ref: "User",

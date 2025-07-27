@@ -109,24 +109,13 @@ export const AuthProvider = ({ children }) => {
 
   // Register user
   const register = async (name, email, password, role) => {
-    dispatch({ type: "SET_LOADING", payload: true })
-
     try {
       const res = await axios.post("/api/auth/register", { name, email, password, role })
-      dispatch({
-        type: "LOGIN_SUCCESS",
-        payload: {
-          token: res.data.token,
-          user: res.data.data,
-        },
-      })
-      setAuthToken(res.data.token)
-      return { success: true }
+      
+      // Don't automatically log in after registration
+      // User needs to wait for approval
+      return { success: true, message: res.data.message }
     } catch (err) {
-      dispatch({
-        type: "AUTH_ERROR",
-        payload: err.response?.data?.message || "Registration failed",
-      })
       return { success: false, message: err.response?.data?.message || "Registration failed" }
     }
   }

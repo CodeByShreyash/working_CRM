@@ -1,7 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import axios from "axios"
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
+import { Input } from '../components/ui/Input'
+import { Label } from '../components/ui/Label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/Select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/Dialog'
+import { useToast } from '../hooks/use-toast'
+import Toast from '../components/Toast'
+import { canManageUsers } from '../permissions/rolePermissions'
 
 const Users = () => {
   const [users, setUsers] = useState([])
@@ -13,7 +22,9 @@ const Users = () => {
     email: "",
     role: "sales_executive",
     isActive: true,
+    isApproved: true,
   })
+  const { toast, toasts } = useToast()
 
   useEffect(() => {
     fetchUsers()
@@ -21,11 +32,31 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("/api/users")
-      setUsers(res.data.data)
-      setLoading(false)
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.data)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch users",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
-      console.error("Error fetching users:", error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch users",
+        variant: "destructive",
+      })
+    } finally {
       setLoading(false)
     }
   }
@@ -33,15 +64,42 @@ const Users = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      if (editingUser) {
-        await axios.put(`/api/users/${editingUser._id}`, formData)
+      const token = localStorage.getItem('token')
+      const url = editingUser ? `/api/users/${editingUser._id}` : '/api/users'
+      const method = editingUser ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: editingUser ? "User updated successfully" : "User created successfully",
+        })
+        setShowModal(false)
+        setEditingUser(null)
+        resetForm()
+        fetchUsers()
+      } else {
+        const data = await response.json()
+        toast({
+          title: "Error",
+          description: data.message || "Failed to save user",
+          variant: "destructive",
+        })
       }
-      setShowModal(false)
-      setEditingUser(null)
-      resetForm()
-      fetchUsers()
     } catch (error) {
-      console.error("Error saving user:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save user",
+        variant: "destructive",
+      })
     }
   }
 
@@ -52,6 +110,7 @@ const Users = () => {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+      isApproved: user.isApproved,
     })
     setShowModal(true)
   }
@@ -59,10 +118,35 @@ const Users = () => {
   const handleDelete = async (userId) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`/api/users/${userId}`)
-        fetchUsers()
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/users/${userId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: "User deleted successfully",
+          })
+          fetchUsers()
+        } else {
+          const data = await response.json()
+          toast({
+            title: "Error",
+            description: data.message || "Failed to delete user",
+            variant: "destructive",
+          })
+        }
       } catch (error) {
-        console.error("Error deleting user:", error)
+        toast({
+          title: "Error",
+          description: "Failed to delete user",
+          variant: "destructive",
+        })
       }
     }
   }
@@ -73,138 +157,199 @@ const Users = () => {
       email: "",
       role: "sales_executive",
       isActive: true,
+      isApproved: true,
     })
   }
 
   const getRoleBadge = (role) => {
-    const roleClasses = {
-      super_admin: "badge-danger",
-      admin: "badge-warning",
-      sales_manager: "badge-info",
-      sales_executive: "badge-success",
-      support_agent: "badge-secondary",
-      customer: "badge-info",
+    const variants = {
+      super_admin: "destructive",
+      admin: "default",
+      sales_manager: "secondary",
+      sales_executive: "outline",
+      support_agent: "secondary",
+      customer: "outline",
     }
-    return `badge ${roleClasses[role] || "badge-secondary"}`
+    return variants[role] || "outline"
   }
 
   if (loading) {
-    return <div className="loading">Loading users...</div>
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading users...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h1>User Management</h1>
-      </div>
-
-      <div className="card">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user._id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>
-                  <span className={getRoleBadge(user.role)}>{user.role.replace("_", " ")}</span>
-                </td>
-                <td>
-                  <span className={user.isActive ? "badge badge-success" : "badge badge-danger"}>
-                    {user.isActive ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                <td>
-                  <button className="btn btn-secondary" onClick={() => handleEdit(user)} style={{ marginRight: "5px" }}>
-                    Edit
-                  </button>
-                  <button className="btn btn-danger" onClick={() => handleDelete(user._id)}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Edit User</h3>
-              <button className="close" onClick={() => setShowModal(false)}>
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label>Name:</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Email:</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Role:</label>
-                <select
-                  className="form-control"
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                >
-                  <option value="sales_executive">Sales Executive</option>
-                  <option value="sales_manager">Sales Manager</option>
-                  <option value="support_agent">Support Agent</option>
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                  <option value="customer">Customer</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  />{" "}
-                  Active
-                </label>
-              </div>
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Update User
-                </button>
-              </div>
-            </form>
-          </div>
+    <div className="container mx-auto p-6">
+      <Toast toasts={toasts} />
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">User Management</h1>
+          <p className="text-muted-foreground">
+            Manage user accounts and permissions
+          </p>
         </div>
-      )}
+        <Button onClick={() => setShowModal(true)}>
+          Add New User
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Name</th>
+                  <th className="text-left p-2">Email</th>
+                  <th className="text-left p-2">Role</th>
+                  <th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">Approval</th>
+                  <th className="text-left p-2">Created</th>
+                  <th className="text-left p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user._id} className="border-b">
+                    <td className="p-2">{user.name}</td>
+                    <td className="p-2">{user.email}</td>
+                    <td className="p-2">
+                      <Badge variant={getRoleBadge(user.role)}>
+                        {user.role.replace("_", " ")}
+                      </Badge>
+                    </td>
+                    <td className="p-2">
+                      <Badge variant={user.isActive ? "default" : "destructive"}>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="p-2">
+                      <Badge variant={user.isApproved ? "default" : "secondary"}>
+                        {user.isApproved ? "Approved" : "Pending"}
+                      </Badge>
+                    </td>
+                    <td className="p-2">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(user)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(user._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingUser ? "Edit User" : "Add New User"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sales_executive">Sales Executive</SelectItem>
+                  <SelectItem value="sales_manager">Sales Manager</SelectItem>
+                  <SelectItem value="support_agent">Support Agent</SelectItem>
+                  <SelectItem value="customer">Customer</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isApproved"
+                checked={formData.isApproved}
+                onChange={(e) => setFormData({ ...formData, isApproved: e.target.checked })}
+                className="rounded"
+              />
+              <Label htmlFor="isApproved">Approved</Label>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowModal(false)
+                  setEditingUser(null)
+                  resetForm()
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingUser ? "Update User" : "Create User"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

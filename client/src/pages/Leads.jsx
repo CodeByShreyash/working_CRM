@@ -96,7 +96,7 @@ const Leads = () => {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", }}>
         <h1>Leads</h1>
         <button
           className="btn btn-primary"

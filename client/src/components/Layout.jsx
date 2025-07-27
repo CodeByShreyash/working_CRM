@@ -2,6 +2,7 @@
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { usePermissions } from "../hooks/usePermissions"
+import { canApproveUsers } from "../permissions/rolePermissions"
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth()
@@ -47,6 +48,15 @@ const Layout = ({ children }) => {
       },
     ]
 
+    // Add pending approvals for admin and superadmin
+    if (canApproveUsers(user?.role)) {
+      allItems.push({
+        path: "/pending-approvals",
+        label: "Pending Approvals",
+        icon: "⏳",
+      })
+    }
+
     // Filter items based on user permissions
     return allItems.filter((item) => canAccess(item.path))
   }
@@ -59,7 +69,7 @@ const Layout = ({ children }) => {
         <div style={{ padding: "20px", borderBottom: "1px solid #495057" }}>
           <h3>CRM System</h3>
           <p style={{ fontSize: "12px", color: "#adb5bd", marginTop: "5px" }}>
-            {user?.name} ({user?.role})
+            {user?.name} ({user?.role?.replace('_', ' ')})
           </p>
         </div>
         <ul className="sidebar-nav">
@@ -86,7 +96,7 @@ const Layout = ({ children }) => {
         )}
       </div>
 
-      <div className="main-content">
+      <div className="main-content" style={{ width: "100%" }}>
         <div className="header">
           <h2>Welcome, {user?.name}</h2>
           <button className="btn btn-secondary" onClick={logout}>

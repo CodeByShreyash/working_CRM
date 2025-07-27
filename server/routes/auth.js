@@ -2,14 +2,15 @@ const express = require("express")
 const jwt = require("jsonwebtoken")
 const { body, validationResult } = require("express-validator")
 const User = require("../models/User")
+const UserApproval = require("../models/UserApproval")
 const { protect } = require("../middleware/auth")
 
 const router = express.Router()
 
-// Generate JWT Token
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
+// Generate JWT Token with role
+const signToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || "30d",
   })
 }
 
@@ -44,24 +45,31 @@ router.post(
         })
       }
 
-      // Create user
+      // Create user with pending approval
       user = await User.create({
         name,
         email,
         password,
         role: role || "sales_executive",
+        isApproved: false,
       })
 
-      const token = signToken(user._id)
+      // Create approval request
+      await UserApproval.create({
+        userId: user._id,
+        requestedBy: user._id,
+        status: "pending",
+      })
 
       res.status(201).json({
         success: true,
-        token,
+        message: "User registered successfully. Please wait for admin approval.",
         data: {
           id: user._id,
           name: user.name,
           email: user.email,
           role: user.role,
+          isApproved: user.isApproved,
         },
       })
     } catch (error) {
@@ -112,7 +120,15 @@ router.post(
         })
       }
 
-      const token = signToken(user._id)
+      // Check if user is approved (except for super_admin and admin)
+      if (!user.isApproved && user.role !== "super_admin" && user.role !== "admin") {
+        return res.status(401).json({
+          success: false,
+          message: "Your account is pending approval. Please contact an administrator.",
+        })
+      }
+
+      const token = signToken(user._id, user.role)
 
       res.json({
         success: true,
@@ -122,6 +138,7 @@ router.post(
           name: user.name,
           email: user.email,
           role: user.role,
+          isApproved: user.isApproved,
         },
       })
     } catch (error) {
@@ -144,6 +161,7 @@ router.get("/me", protect, async (req, res) => {
       name: req.user.name,
       email: req.user.email,
       role: req.user.role,
+      isApproved: req.user.isApproved,
     },
   })
 })
