@@ -1,32 +1,57 @@
 "use client"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { usePermissions } from "../hooks/usePermissions"
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth()
+  const { canAccess } = usePermissions()
   const location = useLocation()
 
   const getNavItems = () => {
-    const items = [
+    const allItems = [
       {
         path: "/",
         label: "Dashboard",
-        roles: ["super_admin", "admin", "sales_manager", "sales_executive", "support_agent", "customer"],
+        icon: "📊",
       },
-      { path: "/leads", label: "Leads", roles: ["super_admin", "admin", "sales_manager", "sales_executive"] },
-      { path: "/deals", label: "Deals", roles: ["super_admin", "admin", "sales_manager", "sales_executive"] },
+      { 
+        path: "/leads", 
+        label: "Leads", 
+        icon: "🎯",
+      },
+      { 
+        path: "/deals", 
+        label: "Deals", 
+        icon: "💰",
+      },
       {
         path: "/tasks",
         label: "Tasks",
-        roles: ["super_admin", "admin", "sales_manager", "sales_executive", "support_agent"],
+        icon: "✅",
       },
-      { path: "/tickets", label: "Tickets", roles: ["super_admin", "admin", "support_agent", "customer"] },
-      { path: "/users", label: "Users", roles: ["super_admin", "admin"] },
-      { path: "/portal", label: "Portal", roles: ["customer"] },
+      { 
+        path: "/tickets", 
+        label: "Tickets", 
+        icon: "🎫",
+      },
+      { 
+        path: "/users", 
+        label: "Users", 
+        icon: "👥",
+      },
+      { 
+        path: "/portal", 
+        label: "Portal", 
+        icon: "🌐",
+      },
     ]
 
-    return items.filter((item) => item.roles.includes(user?.role))
+    // Filter items based on user permissions
+    return allItems.filter((item) => canAccess(item.path))
   }
+
+  const navItems = getNavItems()
 
   return (
     <div style={{ display: "flex" }}>
@@ -38,14 +63,27 @@ const Layout = ({ children }) => {
           </p>
         </div>
         <ul className="sidebar-nav">
-          {getNavItems().map((item) => (
+          {navItems.map((item) => (
             <li key={item.path}>
-              <Link to={item.path} className={location.pathname === item.path ? "active" : ""}>
+              <Link 
+                to={item.path} 
+                className={location.pathname === item.path ? "active" : ""}
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <span>{item.icon}</span>
                 {item.label}
               </Link>
             </li>
           ))}
         </ul>
+        {navItems.length === 0 && (
+          <div style={{ padding: "20px", textAlign: "center", color: "#adb5bd" }}>
+            <p>No navigation items available for your role.</p>
+            <p style={{ fontSize: "0.8rem", marginTop: "5px" }}>
+              Contact your administrator for access.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="main-content">

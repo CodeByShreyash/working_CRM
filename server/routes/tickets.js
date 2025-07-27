@@ -45,27 +45,14 @@ router.get("/", protect, async (req, res) => {
 router.post("/", protect, async (req, res) => {
   try {
     req.body.createdBy = req.user._id
-
-    // If customer creates ticket, set them as customer
     if (req.user.role === "customer") {
       req.body.customer = req.user._id
     }
-
     const ticket = await Ticket.create(req.body)
-
-    await ticket.populate("customer", "name email")
-    await ticket.populate("assignedTo", "name email")
-    await ticket.populate("createdBy", "name email")
-
-    res.status(201).json({
-      success: true,
-      data: ticket,
-    })
+    res.status(201).json(ticket)
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    })
+    console.error(error) // Add this line
+    res.status(500).json({ message: error.message })
   }
 })
 
